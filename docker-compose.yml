@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  nestjs:
+    build: .
+    container_name: nestjs
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      # This URL is correct for service-to-service calls on the compose network:
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/process-user
+    depends_on:
+      n8n:
+        condition: service_healthy
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: always
+    ports:
+      - '5678:5678'
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=yourStrongPassword
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_LISTEN_ADDRESS=0.0.0.0
+      - GENERIC_TIMEZONE=Asia/Kuala_Lumpur
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:5678', r => process.exit(r.statusCode===200||r.statusCode===401?0:1)).on('error', ()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
