@@ -8,8 +8,23 @@ export interface GenerateAiResponse {
   content: string;
 }
 
+export interface WorkflowSummary {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
+export interface WorkflowAnalytics {
+  totalWorkflows: number;
+  activeWorkflows: number;
+  inactiveWorkflows: number;
+  activePercentage: number;
+  recentWorkflows: WorkflowSummary[];
+}
+
 export interface AutomationServiceInterface {
   listWorkflows(): Promise<Workflow[]>;
+  getWorkflowAnalytics(): Promise<WorkflowAnalytics>;
   generateAiCompletion(prompt: string): Promise<GenerateAiResponse>;
 }
 

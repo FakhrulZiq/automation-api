@@ -5,6 +5,7 @@ import type {
   OpenRouterChatResponse,
   OpenRouterMessage,
   GenerateAiResponse,
+  WorkflowAnalytics,
 } from './interfaces/automation.interfaces';
 import type { Workflow } from './entities/workflow.entity';
 import type {
@@ -22,6 +23,10 @@ export class AutomationService implements AutomationServiceInterface {
 
   async listWorkflows(): Promise<Workflow[]> {
     return this.workflowRepository.findAll();
+  }
+
+  async getWorkflowAnalytics(): Promise<WorkflowAnalytics> {
+    return this.workflowRepository.getAnalytics();
   }
 
   async generateAiCompletion(prompt: string): Promise<GenerateAiResponse> {
