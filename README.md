@@ -23,7 +23,7 @@ NestJS service that exposes workflow metadata stored in PostgreSQL, forwards pro
 ## Quickstart
 
 ### Option A – Docker Compose (recommended)
-1. Copy `.env.example` to `.env` and adjust values if needed.
+1. Update `.env.docker` with the credentials you want the containers to use (at minimum set `OPENROUTER_API_KEY`).
 2. Run `docker compose up --build`.
 3. Wait for `nestjs` and `postgres` containers to report healthy.
 4. Visit `http://localhost:3000/docs` for the Swagger UI or hit the endpoints directly.
@@ -50,6 +50,11 @@ NestJS service that exposes workflow metadata stored in PostgreSQL, forwards pro
 | `OPENROUTER_API_URL` | `https://openrouter.ai/api/v1/chat/completions` | OpenRouter chat endpoint. |
 | `OPENROUTER_SITE_URL` | `http://localhost:3000` | Used for OpenRouter attribution headers (optional). |
 | `OPENROUTER_SITE_NAME` | `Automation API` | Human readable site name for attribution (optional). |
+| `POSTGRES_DB` | `automation` | Database created in the Postgres container. |
+| `POSTGRES_USER` | `postgres` | Username configured in the Postgres container. |
+| `POSTGRES_PASSWORD` | `postgres` | Password configured in the Postgres container. |
+
+`.env.docker` is consumed automatically by `docker-compose.yml`; `.env` remains for local Node.js development.
 
 ## Database
 - With `DATABASE_SYNCHRONIZE=true`, TypeORM creates the `workflows` table automatically on boot.
