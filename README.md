@@ -89,7 +89,8 @@ src/
 │   ├── automation.service.ts         # Workflow queries + OpenRouter integration
 │   ├── dto/                          # Request/response DTOs used by Swagger
 │   ├── entities/                     # TypeORM entities (Workflow)
-│   └── interfaces/                   # Shared TypeScript interfaces & contracts
+│   ├── interfaces/                   # Shared TypeScript interfaces & contracts
+│   └── repositories/                 # Repository implementations
 ├── app.module.ts
 └── main.ts                           # Bootstraps NestJS + Swagger configuration
 ```
@@ -129,6 +130,12 @@ curl -X POST http://localhost:3000/automation/ai \
 - `npm run lint` – Run ESLint with Prettier integration.
 - `npm run format` – Format sources with Prettier.
 - `npm run test` – Execute Jest test suite (currently defaults to NestJS starter configuration).
+- `npm run migration:create -- --name=MeaningfulName` – Create an empty migration in `src/database/migrations`.
+- `npm run migration:generate -- --name=MeaningfulName` – Generate a migration based on entity changes.
+- `npm run migration:run` – Apply pending migrations to the configured database.
+- `npm run migration:revert` – Roll back the most recent migration.
+
+> Pass a `--name=` value when creating or generating migrations. Environments are read from `.env` (local) or `.env.docker` (Compose) when the scripts execute.
 
 ## Working With OpenRouter
 - Make sure `OPENROUTER_API_KEY` is set before hitting `/automation/ai`.
@@ -148,7 +155,6 @@ curl -X POST http://localhost:3000/automation/ai \
 - Use `docker compose logs -f nestjs` or `npm run start:dev` terminal output to inspect runtime errors quickly.
 
 ## Contributing / Next Steps
-- Add migrations with `npm install typeorm --save-dev` and `typeorm migration:create` (not currently included).
 - Expand test coverage using NestJS `TestingModule` utilities.
 - Consider caching workflow queries if the dataset grows large.
 - Introduce background jobs or queues for long-running automation actions.

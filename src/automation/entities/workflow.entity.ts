@@ -11,7 +11,10 @@ export class Workflow {
   @Column({ length: 120 })
   name!: string;
 
-  @ApiProperty({ description: 'Optional workflow description', required: false })
+  @ApiProperty({
+    description: 'Optional workflow description',
+    required: false,
+  })
   @Column({ type: 'text', nullable: true })
   description?: string;
 
