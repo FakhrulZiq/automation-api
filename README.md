@@ -1,43 +1,59 @@
 # Automation API
 
-This project demonstrates a simple Model Context Protocol (MCP) style automation service built with [NestJS](https://nestjs.com/) that reads workflow metadata stored in PostgreSQL.
+NestJS service that exposes workflow metadata stored in PostgreSQL, forwards prompts to OpenRouter for AI completions, and documents everything through Swagger.
 
-The repository includes:
-- A NestJS HTTP API with TypeORM integration.
-- A PostgreSQL database configured via Docker Compose.
-- An OpenRouter-backed AI endpoint for prompt completions.
-- Auto-generated Swagger UI available at `/docs` when the server is running.
+## Overview
+- Provides REST endpoints for listing `workflows` and generating AI text completions.
+- Uses TypeORM for persistence with entity auto-loading during development.
+- Includes Docker Compose for local orchestration of the API and PostgreSQL.
+- Ships with OpenAPI docs (Swagger UI) and typed DTOs for consistent contracts.
 
-## Prerequisites
+## Tech Stack
+- Runtime: Node.js 18+ with NestJS 11.
+- Data: PostgreSQL 16 accessed via TypeORM.
+- AI: OpenRouter chat completions API.
+- Tooling: ESLint + Prettier, Jest configuration (no custom tests yet).
 
-- Node.js 18.18+ (Node 20+ recommended for full compatibility)
-- npm 9+
-- Docker Engine & Docker Compose (for containerised setup)
+## Architecture Highlights
+- `AppModule` loads configuration, database connection, and the automation feature module.
+- `AutomationModule` bundles the controller, service, TypeORM repository, and DTOs.
+- `Workflow` entity represents persisted automation workflows.
+- Swagger is configured in `main.ts` to publish docs at runtime under `/docs`.
 
-## Environment Configuration
+## Quickstart
 
-1. Duplicate `.env.example` and rename it to `.env`.
-2. Adjust any values as needed—especially the database credentials if you run PostgreSQL outside Docker.
+### Option A – Docker Compose (recommended)
+1. Copy `.env.example` to `.env` and adjust values if needed.
+2. Run `docker compose up --build`.
+3. Wait for `nestjs` and `postgres` containers to report healthy.
+4. Visit `http://localhost:3000/docs` for the Swagger UI or hit the endpoints directly.
 
-Environment variables used by NestJS:
+### Option B – Local Node.js + External PostgreSQL
+1. Copy `.env.example` to `.env` and point `DATABASE_*` variables to an accessible PostgreSQL instance.
+2. Install dependencies with `npm install`.
+3. Start the API in watch mode using `npm run start:dev`.
+4. Ensure Postgres contains the `workflows` table (see database section below).
 
-```
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
-DATABASE_NAME=automation
-DATABASE_SYNCHRONIZE=true            # Turn off in production; migrations recommended instead
-OPENROUTER_API_KEY=...               # Required to call OpenRouter
-OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
-OPENROUTER_API_URL=https://openrouter.ai/api/v1/chat/completions
-OPENROUTER_SITE_URL=http://localhost:3000
-OPENROUTER_SITE_NAME=Automation API
-```
+## Environment Variables
 
-## Database Schema
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3000` | NestJS HTTP listener port. |
+| `DATABASE_HOST` | `localhost` | PostgreSQL hostname or service name. |
+| `DATABASE_PORT` | `5432` | PostgreSQL port. |
+| `DATABASE_USER` | `postgres` | Database username. |
+| `DATABASE_PASSWORD` | `postgres` | Database password. |
+| `DATABASE_NAME` | `automation` | Target database. |
+| `DATABASE_SYNCHRONIZE` | `true` | Auto-create schema in dev; disable in production. |
+| `OPENROUTER_API_KEY` | — | Required credential for OpenRouter calls. |
+| `OPENROUTER_MODEL` | `meta-llama/llama-3.1-8b-instruct` | Model dispatched to OpenRouter. |
+| `OPENROUTER_API_URL` | `https://openrouter.ai/api/v1/chat/completions` | OpenRouter chat endpoint. |
+| `OPENROUTER_SITE_URL` | `http://localhost:3000` | Used for OpenRouter attribution headers (optional). |
+| `OPENROUTER_SITE_NAME` | `Automation API` | Human readable site name for attribution (optional). |
 
-TypeORM is configured with `synchronize=true` for local development so tables are created automatically. If you want to provision the schema manually the equivalent SQL is:
+## Database
+- With `DATABASE_SYNCHRONIZE=true`, TypeORM creates the `workflows` table automatically on boot.
+- Equivalent SQL definition (for manual provisioning):
 
 ```sql
 CREATE TABLE IF NOT EXISTS workflows (
@@ -48,7 +64,7 @@ CREATE TABLE IF NOT EXISTS workflows (
 );
 ```
 
-Seed some example data to test the read endpoint:
+- Seed sample data (optional) to test the listing endpoint:
 
 ```sql
 INSERT INTO workflows (name, description)
@@ -58,45 +74,76 @@ VALUES
 ON CONFLICT DO NOTHING;
 ```
 
-## Running Locally (Node + local PostgreSQL)
+## Project Structure
 
-```bash
-npm install
-npm run start:dev
+```
+src/
+├── automation/
+│   ├── automation.controller.ts      # Swagger-annotated REST endpoints
+│   ├── automation.module.ts          # Feature wiring for service and repository
+│   ├── automation.service.ts         # Workflow queries + OpenRouter integration
+│   ├── dto/                          # Request/response DTOs used by Swagger
+│   ├── entities/                     # TypeORM entities (Workflow)
+│   └── interfaces/                   # Shared TypeScript interfaces & contracts
+├── app.module.ts
+└── main.ts                           # Bootstraps NestJS + Swagger configuration
 ```
 
-Make sure your PostgreSQL instance is running and reachable using the credentials defined in `.env` before starting the API.
+## API Reference
 
-## Running Everything with Docker Compose
+| Method & Path | Description | Request Body | Success Response |
+| --- | --- | --- | --- |
+| `GET /automation/workflows` | Retrieve all workflows ordered by `id` | — | `200 OK` with `Workflow[]` |
+| `POST /automation/ai` | Generate text using OpenRouter | `{ "prompt": string }` | `200 OK` with `{ content: string }` |
 
-```bash
-docker compose up --build
-```
+- Authorization is not enforced yet; ensure you protect the API before exposing it publicly.
+- All responses are JSON encoded and documented in Swagger.
 
-Services started by Compose:
-- `postgres` – PostgreSQL 16 with a persistent volume `postgres_data`.
-- `nestjs` – the NestJS API, compiled and served from the bundled Dockerfile.
-
-Once the stack is up you can connect to PostgreSQL to seed example data:
+### Example Requests
 
 ```bash
-docker exec -it postgres psql -U postgres -d automation
+# List workflows
+curl http://localhost:3000/automation/workflows
+
+# Generate an AI completion
+curl -X POST http://localhost:3000/automation/ai \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Summarize the latest workflows"}'
 ```
 
-## Available API Endpoints
+## Swagger & Tooling
+- Swagger UI hosted at `GET /docs` once the app is running.
+- Raw OpenAPI JSON available at `GET /docs-json` for tooling integration.
+- DTOs (`GenerateAiRequestDto`, `GenerateAiResponseDto`, `Workflow`) drive schema definitions automatically.
+- Keep the docs up to date by annotating new endpoints with `@ApiOperation`, `@ApiOkResponse`, etc.
 
-- `GET /automation/workflows` – Lists workflows stored in the PostgreSQL database.
-- `POST /automation/ai` – Sends a `prompt` string to OpenRouter and returns the generated completion.
+## Development Commands
+- `npm run start:dev` – Watch mode for local development.
+- `npm run start` – Production-style start (no watch).
+- `npm run build` – Compile TypeScript to `dist/`.
+- `npm run lint` – Run ESLint with Prettier integration.
+- `npm run format` – Format sources with Prettier.
+- `npm run test` – Execute Jest test suite (currently defaults to NestJS starter configuration).
 
-Responses are JSON formatted. Use any REST client (curl, Postman, VS Code REST, etc.) to interact with the API.
+## Working With OpenRouter
+- Make sure `OPENROUTER_API_KEY` is set before hitting `/automation/ai`.
+- Optional attribution headers (`OPENROUTER_SITE_URL`, `OPENROUTER_SITE_NAME`) improve rate limits per OpenRouter guidance.
+- Errors from OpenRouter propagate as `500` responses with context in the message; inspect server logs for details.
 
-## API Documentation
+## Production Considerations
+- Disable `DATABASE_SYNCHRONIZE` and manage schema via migrations.
+- Add authentication/authorization (e.g., JWT, API keys) before exposing the endpoints.
+- Configure logging (`app.useLogger`) and monitoring as needed.
+- Set up proper error tracking (Sentry, OpenTelemetry) for AI request failures.
+- Pin Docker image versions and review resource limits for long-running deployments.
 
-- OpenAPI JSON: `GET /docs-json`
-- Interactive Swagger UI: `GET /docs`
+## Troubleshooting
+- `ECONNREFUSED` on `/automation/workflows` usually means PostgreSQL credentials or host are incorrect.
+- 500 from `/automation/ai` with "API key not configured" indicates missing `OPENROUTER_API_KEY`.
+- Use `docker compose logs -f nestjs` or `npm run start:dev` terminal output to inspect runtime errors quickly.
 
-## Development Notes
-
-- TypeORM entities are auto-loaded and synchronised in development; switch to migrations for production usage.
-- Update `DATABASE_SYNCHRONIZE=false` in production and manage schema changes via migrations.
-- The project retains the default NestJS testing configuration (`npm run test`). No database-specific tests have been added yet.
+## Contributing / Next Steps
+- Add migrations with `npm install typeorm --save-dev` and `typeorm migration:create` (not currently included).
+- Expand test coverage using NestJS `TestingModule` utilities.
+- Consider caching workflow queries if the dataset grows large.
+- Introduce background jobs or queues for long-running automation actions.
