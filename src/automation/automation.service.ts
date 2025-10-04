@@ -1,32 +1,98 @@
-import { Injectable } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
-import { AxiosResponse } from 'axios';
-import { Observable } from 'rxjs';
-
-export interface TriggerWorkflowPayload {
-  name: string;
-}
-
-export interface TriggerWorkflowResponse {
-  message: string;
-}
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
+import { Repository } from 'typeorm';
+import { Workflow } from './entities/workflow.entity';
+import type {
+  AutomationServiceInterface,
+  OpenRouterChatResponse,
+  OpenRouterMessage,
+  GenerateAiResponse,
+} from './interfaces/automation.interfaces';
 
 @Injectable()
-export class AutomationService {
-  constructor(private readonly http: HttpService) {}
+export class AutomationService implements AutomationServiceInterface {
+  constructor(
+    @InjectRepository(Workflow)
+    private readonly workflowRepository: Repository<Workflow>,
+    private readonly configService: ConfigService,
+  ) {}
 
-  async triggerWorkflow(
-    payload: TriggerWorkflowPayload,
-  ): Promise<TriggerWorkflowResponse> {
-    const url = process.env.N8N_WEBHOOK_URL as string;
+  async listWorkflows(): Promise<Workflow[]> {
+    return this.workflowRepository.find({ order: { id: 'ASC' } });
+  }
 
-    const response$: Observable<AxiosResponse<TriggerWorkflowResponse>> =
-      this.http.post(url, payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+  async generateAiCompletion(prompt: string): Promise<GenerateAiResponse> {
+    const apiKey: string | undefined =
+      this.configService.get<string>('OPENROUTER_API_KEY');
+    if (!apiKey) {
+      throw new InternalServerErrorException(
+        'OpenRouter API key not configured',
+      );
+    }
 
-    const { data } = await lastValueFrom(response$);
-    return data;
+    const apiUrl: string = this.configService.get<string>(
+      'OPENROUTER_API_URL',
+      'https://openrouter.ai/api/v1/chat/completions',
+    );
+    const model: string = this.configService.get<string>(
+      'OPENROUTER_MODEL',
+      'meta-llama/llama-3.1-8b-instruct',
+    );
+    const siteUrl: string | undefined = this.configService.get<string>(
+      'OPENROUTER_SITE_URL',
+    );
+    const siteName: string | undefined = this.configService.get<string>(
+      'OPENROUTER_SITE_NAME',
+    );
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    };
+
+    if (siteUrl) {
+      headers['HTTP-Referer'] = siteUrl;
+    }
+
+    if (siteName) {
+      headers['X-Title'] = siteName;
+    }
+
+    const messages: OpenRouterMessage[] = [
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ];
+
+    const requestBody: { model: string; messages: OpenRouterMessage[] } = {
+      model,
+      messages,
+    };
+
+    const response: Response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `OpenRouter request failed (${response.status} ${response.statusText})`,
+      );
+    }
+
+    const data: OpenRouterChatResponse =
+      (await response.json()) as OpenRouterChatResponse;
+    const content: string = data?.choices?.[0]?.message?.content ?? '';
+
+    if (!content) {
+      throw new InternalServerErrorException(
+        'OpenRouter response did not include content',
+      );
+    }
+
+    return { content };
   }
 }
