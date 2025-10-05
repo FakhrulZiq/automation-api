@@ -1,13 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { UserContext } from './interfaces/user-context.interface';
+import type {
+  IAuthService,
+  UserContext,
+} from './interfaces/user-context.interface';
 
 interface TokenRecord extends UserContext {
   token: string;
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements IAuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly tokenMap: Map<string, TokenRecord> = new Map();
 
@@ -34,7 +37,9 @@ export class AuthService {
   private loadTokens(): void {
     const entries = this.configService.get<string>('MCP_API_KEYS');
     if (!entries) {
-      this.logger.warn('No MCP_API_KEYS configured; MCP authentication will fail for all tokens');
+      this.logger.warn(
+        'No MCP_API_KEYS configured; MCP authentication will fail for all tokens',
+      );
       return;
     }
 

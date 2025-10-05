@@ -1,45 +1,25 @@
 import {
+  BadRequestException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   UnauthorizedException,
-  BadRequestException,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AutomationService } from './automation.service';
 import type { Workflow } from './entities/workflow.entity';
+import {
+  AgentConversationResult,
+  AgentDecision,
+  IAgentService,
+  IToolDefinition,
+  OutputFormat,
+  ToolName,
+} from './interfaces/agent.interfaces';
 import type { WorkflowAnalytics } from './interfaces/automation.interfaces';
 
-type ToolName = 'list_workflows' | 'workflow_analytics';
-
-interface ToolDefinition {
-  name: ToolName;
-  description: string;
-}
-
-interface AgentDecisionTool {
-  action: 'tool';
-  tool: ToolName;
-  params?: Record<string, unknown>;
-}
-
-interface AgentDecisionRespond {
-  action: 'respond';
-  response: string;
-}
-
-type AgentDecision = AgentDecisionTool | AgentDecisionRespond;
-
-export interface AgentConversationResult {
-  decision: AgentDecision;
-  toolResult?: Workflow[] | WorkflowAnalytics | null;
-  finalResponse: string;
-}
-
-type OutputFormat = 'text' | 'markdown' | 'html';
-
 @Injectable()
-export class AgentService {
+export class AgentService implements IAgentService {
   private readonly logger = new Logger(AgentService.name);
 
   constructor(
@@ -53,12 +33,16 @@ export class AgentService {
     outputFormat: OutputFormat = 'markdown',
   ): Promise<AgentConversationResult> {
     if (!scopes.includes('ai.generate')) {
-      throw new UnauthorizedException('ai.generate scope required to use the agent');
+      throw new UnauthorizedException(
+        'ai.generate scope required to use the agent',
+      );
     }
 
     const tools = this.buildToolCatalog(scopes);
     if (tools.length === 0) {
-      throw new UnauthorizedException('No tools available for the current user scope');
+      throw new UnauthorizedException(
+        'No tools available for the current user scope',
+      );
     }
 
     const decision = await this.requestToolDecision(prompt, tools);
@@ -91,8 +75,8 @@ export class AgentService {
     };
   }
 
-  private buildToolCatalog(scopes: string[]): ToolDefinition[] {
-    const tools: ToolDefinition[] = [];
+  private buildToolCatalog(scopes: string[]): IToolDefinition[] {
+    const tools: IToolDefinition[] = [];
 
     if (scopes.includes('workflow.read')) {
       tools.push({
@@ -113,7 +97,7 @@ export class AgentService {
 
   private async requestToolDecision(
     prompt: string,
-    tools: ToolDefinition[],
+    tools: IToolDefinition[],
   ): Promise<AgentDecision> {
     const toolListJson = JSON.stringify(tools, null, 2);
     const systemContent = `You are an AI orchestration planner. Available tools: ${toolListJson}.
@@ -143,8 +127,14 @@ Do not include any additional text.`;
 
       throw new Error('Decision shape invalid');
     } catch (error) {
-      this.logger.error('Failed to parse agent decision', error as Error, response);
-      throw new BadRequestException('Failed to parse agent decision from model response');
+      this.logger.error(
+        'Failed to parse agent decision',
+        error as Error,
+        response,
+      );
+      throw new BadRequestException(
+        'Failed to parse agent decision from model response',
+      );
     }
   }
 
@@ -193,7 +183,9 @@ ${JSON.stringify(result, null, 2)}`;
   ): Promise<string> {
     const apiKey = this.configService.get<string>('OPENROUTER_API_KEY');
     if (!apiKey) {
-      throw new InternalServerErrorException('OpenRouter API key not configured');
+      throw new InternalServerErrorException(
+        'OpenRouter API key not configured',
+      );
     }
 
     const apiUrl = this.configService.get<string>(
@@ -238,7 +230,9 @@ ${JSON.stringify(result, null, 2)}`;
     const content = data?.choices?.[0]?.message?.content;
 
     if (!content) {
-      throw new InternalServerErrorException('OpenRouter response did not include content');
+      throw new InternalServerErrorException(
+        'OpenRouter response did not include content',
+      );
     }
 
     return content;

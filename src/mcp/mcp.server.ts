@@ -1,17 +1,20 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AutomationService } from '../automation/automation.service';
-import { AgentService } from '../automation/agent.service';
+import { IAutomationService } from 'src/automation/interfaces/automation.interfaces';
+import type { RawData, WebSocket } from 'ws';
+import { WebSocketServer } from 'ws';
 import { AuthService } from '../auth/auth.service';
 import type { UserContext } from '../auth/interfaces/user-context.interface';
+import { AgentService } from '../automation/agent.service';
 import type { CallToolRequest, McpRequest, McpResponse } from './mcp.types';
-import { WebSocketServer } from 'ws';
-import type { RawData, WebSocket } from 'ws';
+import { TYPES } from 'src/utilities/constant';
+import { IAgentService } from 'src/automation/interfaces/agent.interfaces';
 
 const WORKFLOW_READ_SCOPE = 'workflow.read';
 const ANALYTICS_READ_SCOPE = 'analytics.read';
@@ -26,8 +29,10 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly automationService: AutomationService,
-    private readonly agentService: AgentService,
+    @Inject(TYPES.IAutomationService)
+    private readonly _automationService: IAutomationService,
+    @Inject(TYPES.IAutomationService)
+    private readonly _agentService: IAgentService,
     private readonly authService: AuthService,
   ) {}
 
@@ -147,8 +152,7 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
     if (context.scopes.includes(WORKFLOW_READ_SCOPE)) {
       tools.push({
         name: 'list_workflows',
-        description:
-          'Returns all workflows stored in the automation database.',
+        description: 'Returns all workflows stored in the automation database.',
         input_schema: {
           type: 'object',
           properties: {},
@@ -219,7 +223,7 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
             return;
           }
 
-          const workflows = await this.automationService.listWorkflows();
+          const workflows = await this._automationService.listWorkflows();
           this.sendResult(socket, message.id, { workflows });
           break;
         }
@@ -229,7 +233,8 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
             return;
           }
 
-          const analytics = await this.automationService.getWorkflowAnalytics();
+          const analytics =
+            await this._automationService.getWorkflowAnalytics();
           this.sendResult(socket, message.id, analytics);
           break;
         }
@@ -250,7 +255,7 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
           }
 
           const completion =
-            await this.automationService.generateAiCompletion(prompt);
+            await this._automationService.generateAiCompletion(prompt);
           this.sendResult(socket, message.id, completion);
           break;
         }
@@ -268,7 +273,11 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
           const agentPrompt = message.params?.prompt;
           const outputFormat = message.params?.outputFormat;
           if (typeof agentPrompt !== 'string' || !agentPrompt.trim()) {
-            this.sendError(socket, message.id, 'agent_ask requires a non-empty prompt');
+            this.sendError(
+              socket,
+              message.id,
+              'agent_ask requires a non-empty prompt',
+            );
             return;
           }
 
@@ -279,7 +288,7 @@ export class McpServer implements OnModuleInit, OnModuleDestroy {
                 ? 'text'
                 : 'markdown';
 
-          const result = await this.agentService.handlePrompt(
+          const result = await this._agentService.handlePrompt(
             agentPrompt,
             context.scopes,
             format,

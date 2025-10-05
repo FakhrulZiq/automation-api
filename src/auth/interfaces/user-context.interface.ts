@@ -6,3 +6,7 @@ export interface UserContext {
 export interface AuthorizationPayload {
   token: string;
 }
+
+export interface IAuthService {
+  validateToken(token: string | undefined | null): UserContext | null;
+}

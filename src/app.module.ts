@@ -17,7 +17,8 @@ import { McpModule } from './mcp/mcp.module';
         password: configService.get<string>('DATABASE_PASSWORD', 'postgres'),
         database: configService.get<string>('DATABASE_NAME', 'automation'),
         autoLoadEntities: true,
-        synchronize: configService.get<string>('DATABASE_SYNCHRONIZE', 'true') === 'true',
+        synchronize:
+          configService.get<string>('DATABASE_SYNCHRONIZE', 'true') === 'true',
       }),
     }),
     AutomationModule,
