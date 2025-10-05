@@ -56,6 +56,7 @@ NestJS service that exposes workflow metadata stored in PostgreSQL, forwards pro
 | `MCP_ENABLED` | `true` | Toggle to start the MCP WebSocket server. |
 | `MCP_HOST` | `0.0.0.0` | Bind host for the MCP WebSocket server. |
 | `MCP_PORT` | `4000` | Port for the MCP WebSocket server. |
+| `MCP_API_KEYS` | — | Comma separated `token:userId:scope1|scope2` entries for MCP authentication. |
 
 `.env.docker` is consumed automatically by `docker-compose.yml`; `.env` remains for local Node.js development.
 
@@ -104,6 +105,7 @@ src/
 | --- | --- | --- | --- |
 | `GET /automation/workflows` | Retrieve all workflows ordered by `id` | — | `200 OK` with `Workflow[]` |
 | `GET /automation/analytics` | Aggregated workflow statistics | — | `200 OK` with analytics object |
+| `POST /automation/agent` | Natural-language agent orchestration that selects tools automatically | `{ "prompt": string, "scopes?": string[], "outputFormat?": "text" | "markdown" | "html" }` | `200 OK` with structured agent response |
 | `POST /automation/ai` | Generate text using OpenRouter | `{ "prompt": string }` | `200 OK` with `{ content: string }` |
 
 - Authorization is not enforced yet; ensure you protect the API before exposing it publicly.
@@ -129,12 +131,22 @@ curl -X POST http://localhost:3000/automation/ai \
 
 ## MCP Server
 - WebSocket endpoint: `ws://<host>:<MCP_PORT>` (defaults to `ws://localhost:4000`).
-- Supported messages (JSON):
+- Authentication handshake:
+  1. Client connects and receives the `authentication_required` event.
+  2. Client sends `{ "type": "authenticate", "token": "<api-token>", "id": "auth-1" }`.
+  3. Server responds with scopes (e.g., `["workflow.read","analytics.read"]`).
+- Supported messages (after authentication):
   - `{ "type": "initialize", "id": "1" }`
-- `{ "type": "list_tools", "id": "2" }`
-- `{ "type": "call_tool", "id": "3", "tool": "list_workflows" }`
-- `{ "type": "call_tool", "id": "4", "tool": "workflow_analytics" }`
-- `{ "type": "call_tool", "id": "5", "tool": "generate_ai", "params": { "prompt": "Hello" } }`
+  - `{ "type": "list_tools", "id": "2" }` (returns only tools allowed by the user's scopes)
+  - `{ "type": "call_tool", "id": "3", "tool": "list_workflows" }`
+  - `{ "type": "call_tool", "id": "4", "tool": "workflow_analytics" }`
+  - `{ "type": "call_tool", "id": "5", "tool": "agent_ask", "params": { "prompt": "Build dashboard summarising workflows", "outputFormat": "html" } }`
+  - `{ "type": "call_tool", "id": "6", "tool": "generate_ai", "params": { "prompt": "Hello" } }`
+- Scope requirements:
+  - `workflow.read` → `list_workflows`
+  - `analytics.read` → `workflow_analytics`
+  - `ai.generate` → `generate_ai`
+  - `agent.execute` **and** `ai.generate` (plus data scopes such as `workflow.read`/`analytics.read`) → `agent_ask`
 - Responses follow the MCP draft structure with `result`, `error`, or `event` payloads.
 - Disable the server by setting `MCP_ENABLED=false` if not needed.
 

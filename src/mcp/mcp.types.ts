@@ -25,11 +25,17 @@ export interface PingRequest extends McpMessageBase {
   type: 'ping';
 }
 
+export interface AuthenticateRequest extends McpMessageBase {
+  type: 'authenticate';
+  token: string;
+}
+
 export type McpRequest =
   | InitializeRequest
   | ListToolsRequest
   | CallToolRequest
-  | PingRequest;
+  | PingRequest
+  | AuthenticateRequest;
 
 export interface McpResultResponse extends McpMessageBase {
   type: 'result';

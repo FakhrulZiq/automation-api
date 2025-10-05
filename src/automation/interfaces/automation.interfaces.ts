@@ -22,7 +22,7 @@ export interface WorkflowAnalytics {
   recentWorkflows: WorkflowSummary[];
 }
 
-export interface AutomationServiceInterface {
+export interface IAutomationService {
   listWorkflows(): Promise<Workflow[]>;
   getWorkflowAnalytics(): Promise<WorkflowAnalytics>;
   generateAiCompletion(prompt: string): Promise<GenerateAiResponse>;
