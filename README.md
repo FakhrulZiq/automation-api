@@ -53,6 +53,9 @@ NestJS service that exposes workflow metadata stored in PostgreSQL, forwards pro
 | `POSTGRES_DB` | `automation` | Database created in the Postgres container. |
 | `POSTGRES_USER` | `postgres` | Username configured in the Postgres container. |
 | `POSTGRES_PASSWORD` | `postgres` | Password configured in the Postgres container. |
+| `MCP_ENABLED` | `true` | Toggle to start the MCP WebSocket server. |
+| `MCP_HOST` | `0.0.0.0` | Bind host for the MCP WebSocket server. |
+| `MCP_PORT` | `4000` | Port for the MCP WebSocket server. |
 
 `.env.docker` is consumed automatically by `docker-compose.yml`; `.env` remains for local Node.js development.
 
@@ -100,6 +103,7 @@ src/
 | Method & Path | Description | Request Body | Success Response |
 | --- | --- | --- | --- |
 | `GET /automation/workflows` | Retrieve all workflows ordered by `id` | — | `200 OK` with `Workflow[]` |
+| `GET /automation/analytics` | Aggregated workflow statistics | — | `200 OK` with analytics object |
 | `POST /automation/ai` | Generate text using OpenRouter | `{ "prompt": string }` | `200 OK` with `{ content: string }` |
 
 - Authorization is not enforced yet; ensure you protect the API before exposing it publicly.
@@ -122,6 +126,17 @@ curl -X POST http://localhost:3000/automation/ai \
 - Raw OpenAPI JSON available at `GET /docs-json` for tooling integration.
 - DTOs (`GenerateAiRequestDto`, `GenerateAiResponseDto`, `Workflow`) drive schema definitions automatically.
 - Keep the docs up to date by annotating new endpoints with `@ApiOperation`, `@ApiOkResponse`, etc.
+
+## MCP Server
+- WebSocket endpoint: `ws://<host>:<MCP_PORT>` (defaults to `ws://localhost:4000`).
+- Supported messages (JSON):
+  - `{ "type": "initialize", "id": "1" }`
+- `{ "type": "list_tools", "id": "2" }`
+- `{ "type": "call_tool", "id": "3", "tool": "list_workflows" }`
+- `{ "type": "call_tool", "id": "4", "tool": "workflow_analytics" }`
+- `{ "type": "call_tool", "id": "5", "tool": "generate_ai", "params": { "prompt": "Hello" } }`
+- Responses follow the MCP draft structure with `result`, `error`, or `event` payloads.
+- Disable the server by setting `MCP_ENABLED=false` if not needed.
 
 ## Development Commands
 - `npm run start:dev` – Watch mode for local development.
