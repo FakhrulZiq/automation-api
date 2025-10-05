@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Workflow } from '../entities/workflow.entity';
-import type { WorkflowAnalytics, WorkflowSummary } from '../interfaces/automation.interfaces';
-import type { WorkflowRepositoryInterface } from '../interfaces/workflow-repository.interface';
+import type {
+  WorkflowAnalytics,
+  WorkflowSummary,
+} from '../interfaces/automation.interfaces';
+import type { IWorkflowRepository } from '../interfaces/workflow-repository.interface';
 
 @Injectable()
-export class WorkflowRepository implements WorkflowRepositoryInterface {
+export class WorkflowRepository implements IWorkflowRepository {
   constructor(
     @InjectRepository(Workflow)
     private readonly repository: Repository<Workflow>,

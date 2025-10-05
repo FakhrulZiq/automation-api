@@ -1,23 +1,25 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type {
-  AutomationServiceInterface,
-  OpenRouterChatResponse,
-  OpenRouterMessage,
-  GenerateAiResponse,
-  WorkflowAnalytics,
-} from './interfaces/automation.interfaces';
+import { TYPES } from 'src/utilities/constant';
 import type { Workflow } from './entities/workflow.entity';
 import type {
-  WorkflowRepositoryInterface,
-} from './interfaces/workflow-repository.interface';
-import { WORKFLOW_REPOSITORY } from './interfaces/workflow-repository.interface';
+  GenerateAiResponse,
+  IAutomationService,
+  OpenRouterChatResponse,
+  OpenRouterMessage,
+  WorkflowAnalytics,
+} from './interfaces/automation.interfaces';
+import type { IWorkflowRepository } from './interfaces/workflow-repository.interface';
 
 @Injectable()
-export class AutomationService implements AutomationServiceInterface {
+export class AutomationService implements IAutomationService {
   constructor(
-    @Inject(WORKFLOW_REPOSITORY)
-    private readonly workflowRepository: WorkflowRepositoryInterface,
+    @Inject(TYPES.IWorkflowRepository)
+    private readonly workflowRepository: IWorkflowRepository,
     private readonly configService: ConfigService,
   ) {}
 

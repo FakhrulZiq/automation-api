@@ -1,9 +1,23 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AutomationService } from 'src/automation/automation.service';
+import { Workflow } from 'src/automation/entities/workflow.entity';
+import { WorkflowRepository } from 'src/automation/repositories/workflow.repository';
+import { TYPES } from 'src/utilities/constant';
 import { McpServer } from './mcp.server';
-import { AutomationModule } from '../automation/automation.module';
 
 @Module({
-  imports: [AutomationModule],
-  providers: [McpServer],
+  imports: [TypeOrmModule.forFeature([Workflow])],
+  providers: [
+    McpServer,
+    {
+      provide: TYPES.IAutomationService,
+      useClass: AutomationService,
+    },
+    {
+      provide: TYPES.IWorkflowRepository,
+      useClass: WorkflowRepository,
+    },
+  ],
 })
 export class McpModule {}
