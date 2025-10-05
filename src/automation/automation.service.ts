@@ -1,25 +1,32 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
-import { Workflow } from './entities/workflow.entity';
 import type {
   AutomationServiceInterface,
   OpenRouterChatResponse,
   OpenRouterMessage,
   GenerateAiResponse,
+  WorkflowAnalytics,
 } from './interfaces/automation.interfaces';
+import type { Workflow } from './entities/workflow.entity';
+import type {
+  WorkflowRepositoryInterface,
+} from './interfaces/workflow-repository.interface';
+import { WORKFLOW_REPOSITORY } from './interfaces/workflow-repository.interface';
 
 @Injectable()
 export class AutomationService implements AutomationServiceInterface {
   constructor(
-    @InjectRepository(Workflow)
-    private readonly workflowRepository: Repository<Workflow>,
+    @Inject(WORKFLOW_REPOSITORY)
+    private readonly workflowRepository: WorkflowRepositoryInterface,
     private readonly configService: ConfigService,
   ) {}
 
   async listWorkflows(): Promise<Workflow[]> {
-    return this.workflowRepository.find({ order: { id: 'ASC' } });
+    return this.workflowRepository.findAll();
+  }
+
+  async getWorkflowAnalytics(): Promise<WorkflowAnalytics> {
+    return this.workflowRepository.getAnalytics();
   }
 
   async generateAiCompletion(prompt: string): Promise<GenerateAiResponse> {

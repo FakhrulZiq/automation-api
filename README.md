@@ -23,7 +23,7 @@ NestJS service that exposes workflow metadata stored in PostgreSQL, forwards pro
 ## Quickstart
 
 ### Option A – Docker Compose (recommended)
-1. Copy `.env.example` to `.env` and adjust values if needed.
+1. Update `.env.docker` with the credentials you want the containers to use (at minimum set `OPENROUTER_API_KEY`).
 2. Run `docker compose up --build`.
 3. Wait for `nestjs` and `postgres` containers to report healthy.
 4. Visit `http://localhost:3000/docs` for the Swagger UI or hit the endpoints directly.
@@ -50,6 +50,14 @@ NestJS service that exposes workflow metadata stored in PostgreSQL, forwards pro
 | `OPENROUTER_API_URL` | `https://openrouter.ai/api/v1/chat/completions` | OpenRouter chat endpoint. |
 | `OPENROUTER_SITE_URL` | `http://localhost:3000` | Used for OpenRouter attribution headers (optional). |
 | `OPENROUTER_SITE_NAME` | `Automation API` | Human readable site name for attribution (optional). |
+| `POSTGRES_DB` | `automation` | Database created in the Postgres container. |
+| `POSTGRES_USER` | `postgres` | Username configured in the Postgres container. |
+| `POSTGRES_PASSWORD` | `postgres` | Password configured in the Postgres container. |
+| `MCP_ENABLED` | `true` | Toggle to start the MCP WebSocket server. |
+| `MCP_HOST` | `0.0.0.0` | Bind host for the MCP WebSocket server. |
+| `MCP_PORT` | `4000` | Port for the MCP WebSocket server. |
+
+`.env.docker` is consumed automatically by `docker-compose.yml`; `.env` remains for local Node.js development.
 
 ## Database
 - With `DATABASE_SYNCHRONIZE=true`, TypeORM creates the `workflows` table automatically on boot.
@@ -84,7 +92,8 @@ src/
 │   ├── automation.service.ts         # Workflow queries + OpenRouter integration
 │   ├── dto/                          # Request/response DTOs used by Swagger
 │   ├── entities/                     # TypeORM entities (Workflow)
-│   └── interfaces/                   # Shared TypeScript interfaces & contracts
+│   ├── interfaces/                   # Shared TypeScript interfaces & contracts
+│   └── repositories/                 # Repository implementations
 ├── app.module.ts
 └── main.ts                           # Bootstraps NestJS + Swagger configuration
 ```
@@ -94,6 +103,7 @@ src/
 | Method & Path | Description | Request Body | Success Response |
 | --- | --- | --- | --- |
 | `GET /automation/workflows` | Retrieve all workflows ordered by `id` | — | `200 OK` with `Workflow[]` |
+| `GET /automation/analytics` | Aggregated workflow statistics | — | `200 OK` with analytics object |
 | `POST /automation/ai` | Generate text using OpenRouter | `{ "prompt": string }` | `200 OK` with `{ content: string }` |
 
 - Authorization is not enforced yet; ensure you protect the API before exposing it publicly.
@@ -117,6 +127,17 @@ curl -X POST http://localhost:3000/automation/ai \
 - DTOs (`GenerateAiRequestDto`, `GenerateAiResponseDto`, `Workflow`) drive schema definitions automatically.
 - Keep the docs up to date by annotating new endpoints with `@ApiOperation`, `@ApiOkResponse`, etc.
 
+## MCP Server
+- WebSocket endpoint: `ws://<host>:<MCP_PORT>` (defaults to `ws://localhost:4000`).
+- Supported messages (JSON):
+  - `{ "type": "initialize", "id": "1" }`
+- `{ "type": "list_tools", "id": "2" }`
+- `{ "type": "call_tool", "id": "3", "tool": "list_workflows" }`
+- `{ "type": "call_tool", "id": "4", "tool": "workflow_analytics" }`
+- `{ "type": "call_tool", "id": "5", "tool": "generate_ai", "params": { "prompt": "Hello" } }`
+- Responses follow the MCP draft structure with `result`, `error`, or `event` payloads.
+- Disable the server by setting `MCP_ENABLED=false` if not needed.
+
 ## Development Commands
 - `npm run start:dev` – Watch mode for local development.
 - `npm run start` – Production-style start (no watch).
@@ -124,6 +145,12 @@ curl -X POST http://localhost:3000/automation/ai \
 - `npm run lint` – Run ESLint with Prettier integration.
 - `npm run format` – Format sources with Prettier.
 - `npm run test` – Execute Jest test suite (currently defaults to NestJS starter configuration).
+- `npm run migration:create -- --name=MeaningfulName` – Create an empty migration in `src/database/migrations`.
+- `npm run migration:generate -- --name=MeaningfulName` – Generate a migration based on entity changes.
+- `npm run migration:run` – Apply pending migrations to the configured database.
+- `npm run migration:revert` – Roll back the most recent migration.
+
+> Pass a `--name=` value when creating or generating migrations. Environments are read from `.env` (local) or `.env.docker` (Compose) when the scripts execute.
 
 ## Working With OpenRouter
 - Make sure `OPENROUTER_API_KEY` is set before hitting `/automation/ai`.
@@ -143,7 +170,6 @@ curl -X POST http://localhost:3000/automation/ai \
 - Use `docker compose logs -f nestjs` or `npm run start:dev` terminal output to inspect runtime errors quickly.
 
 ## Contributing / Next Steps
-- Add migrations with `npm install typeorm --save-dev` and `typeorm migration:create` (not currently included).
 - Expand test coverage using NestJS `TestingModule` utilities.
 - Consider caching workflow queries if the dataset grows large.
 - Introduce background jobs or queues for long-running automation actions.

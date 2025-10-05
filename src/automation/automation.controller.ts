@@ -7,10 +7,14 @@ import {
 } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AutomationService } from './automation.service';
-import type { GenerateAiResponse } from './interfaces/automation.interfaces';
+import type {
+  GenerateAiResponse,
+  WorkflowAnalytics,
+} from './interfaces/automation.interfaces';
 import { Workflow } from './entities/workflow.entity';
 import { GenerateAiRequestDto } from './dto/generate-ai-request.dto';
 import { GenerateAiResponseDto } from './dto/generate-ai-response.dto';
+import { WorkflowAnalyticsDto } from './dto/workflow-analytics.dto';
 
 @ApiTags('automation')
 @Controller('automation')
@@ -25,6 +29,16 @@ export class AutomationController {
   @ApiOkResponse({ type: Workflow, isArray: true })
   async listWorkflows(): Promise<Workflow[]> {
     return this.automationService.listWorkflows();
+  }
+
+  @Get('analytics')
+  @ApiOperation({
+    summary: 'Workflow analytics',
+    description: 'Aggregated statistics for workflows stored in the database.',
+  })
+  @ApiOkResponse({ type: WorkflowAnalyticsDto })
+  async getAnalytics(): Promise<WorkflowAnalytics> {
+    return this.automationService.getWorkflowAnalytics();
   }
 
   @Post('ai')
